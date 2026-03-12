@@ -1,11 +1,8 @@
-import socket
-import sqlite3
-import datetime
+import socket, sqlite3, datetime, threading
 
 port_data = []
 
-def scan_port(hostname, port):
-    address = socket.gethostbyname(hostname)
+def scan_port(address, port):
     s = socket.socket()
     s.settimeout(0.5)
     port_status = s.connect_ex((address, port))
@@ -17,6 +14,16 @@ def scan_port(hostname, port):
         port_status = "CLOSED"
     time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
     port_data.append([address, port, port_status, time])
+
+def start_threads(address):
+    active_threads = []
+    for port in range(1, 65536):
+        thread = threading.Thread(target=scan_port, args=(address, port))
+        active_threads.append(thread)
+    for thread in active_threads:
+        thread.start()
+    for thread in active_threads:
+        thread.join()
 
 def upload_data(data_dict):
     global port_data
@@ -38,6 +45,6 @@ con.execute("""
 
 TARGET = "scanme.nmap.org"
 
-for port in range(1, 101):
-    scan_port(TARGET, port)
+address = socket.gethostbyname(TARGET)
+start_threads(address)
 upload_data(port_data)
